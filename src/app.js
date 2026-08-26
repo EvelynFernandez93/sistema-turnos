@@ -1,12 +1,10 @@
-import { env } from "./config/env.config.js";
-import ServiceManager from "./managers/ServiceManager.js";
+import express from "express";
+import servicesRouter from "./routes/services.router.js";
 
-const serviceManager = new ServiceManager();
+const app = express();/*Permite que Express pueda leer JSON enviado en el body de un POST o PUT. */
 
-console.log("Aplicación iniciada correctamente");
-console.log(`Puerto: ${env.port}`);
-console.log(`Entorno: ${env.nodeEnv}`);
+app.use(express.json());
 
-const services = await serviceManager.getServices();
+app.use("/api/services", servicesRouter);
 
-console.log("Servicios:", services);
+export default app;
