@@ -1,16 +1,20 @@
-# Sistema de Turnos y Reservas
+# Sistema Backend de Turnos y Reservas
 
-Proyecto Backend desarrollado con Node.js para administrar los servicios de un sistema de turnos y reservas.
+API REST desarrollada con **Node.js, Express y FileSystem** para gestionar servicios y reservas de un sistema de turnos.
 
-El proyecto implementa una clase `ServiceManager` que permite obtener, buscar, agregar, actualizar y eliminar servicios. Los datos se almacenan de forma persistente en un archivo JSON.
+El proyecto permite crear, consultar, actualizar y eliminar servicios, además de crear reservas y asociar servicios a cada una de ellas.
+
+La información se almacena de forma persistente en archivos JSON, por lo que los datos se mantienen aunque el servidor se reinicie.
 
 ## Tecnologías utilizadas
 
 - Node.js
 - JavaScript
+- Express
 - ECMAScript Modules (ESM)
-- dotenv
 - File System de Node.js
+- dotenv
+- JSON para persistencia de datos
 
 ## Instalación
 
@@ -20,7 +24,7 @@ El proyecto implementa una clase `ServiceManager` que permite obtener, buscar, a
 npm install
 ```
 
-2. Crear un archivo `.env` en la raíz del proyecto tomando como referencia el archivo `.env.example`.
+2. Crear un archivo `.env` en la raíz del proyecto tomando como referencia `.env.example`.
 
 3. Configurar las variables de entorno:
 
@@ -29,32 +33,49 @@ PORT=8080
 NODE_ENV=development
 ```
 
-4. Ejecutar el proyecto:
+4. Iniciar el servidor:
 
 ```bash
 npm start
 ```
 
+El servidor quedará disponible en:
+
+```text
+http://localhost:8080
+```
+
 ## Variables de entorno
 
-El proyecto utiliza las siguientes variables de entorno:
+El proyecto utiliza las siguientes variables:
 
-- `PORT`: puerto utilizado por la aplicación.
-- `NODE_ENV`: entorno en el que se ejecuta la aplicación.
+- `PORT`: puerto en el que se ejecuta el servidor.
+- `NODE_ENV`: entorno de ejecución de la aplicación.
 
-Las variables de entorno son cargadas utilizando `dotenv` y se validan al iniciar la aplicación.
+Las variables son cargadas mediante `dotenv` y validadas al iniciar la aplicación.
 
-Si alguna de las variables obligatorias no se encuentra definida, la aplicación lanza un error indicando cuál es la variable faltante.
+El archivo `.env` no se incluye en el repositorio. El archivo `.env.example` sirve como referencia de las variables necesarias.
 
-El archivo `.env` no se incluye en el repositorio. Se proporciona `.env.example` como referencia de las variables necesarias.
+---
 
-## Recurso Services
+# API REST
 
-Los servicios se almacenan en:
+La API gestiona dos recursos principales:
 
-`src/data/services.json`
+- `services`: servicios disponibles para reservar.
+- `bookings`: reservas realizadas por los clientes.
 
-Cada servicio posee la siguiente estructura:
+---
+
+## Servicios
+
+Los servicios se almacenan de forma persistente en:
+
+```text
+src/data/services.json
+```
+
+Cada servicio tiene la siguiente estructura:
 
 ```json
 {
@@ -68,92 +89,235 @@ Cada servicio posee la siguiente estructura:
 }
 ```
 
-### Propiedades de un servicio
+### Propiedades
 
-- `id`: identificador único del servicio. Se genera automáticamente.
+- `id`: identificador único generado automáticamente.
 - `name`: nombre del servicio.
 - `description`: descripción del servicio.
 - `duration`: duración del servicio.
 - `price`: precio del servicio.
-- `category`: categoría a la que pertenece el servicio.
+- `category`: categoría del servicio.
 - `available`: indica si el servicio se encuentra disponible.
 
-## ServiceManager
+### Endpoints de servicios
 
-La clase `ServiceManager`, ubicada en `src/managers/ServiceManager.js`, es la encargada de administrar los servicios.
+| Método | Endpoint | Descripción |
+|---|---|---|
+| GET | `/api/services` | Obtiene todos los servicios |
+| GET | `/api/services/:sid` | Obtiene un servicio por su id |
+| POST | `/api/services` | Crea un nuevo servicio |
+| PUT | `/api/services/:sid` | Actualiza un servicio |
+| DELETE | `/api/services/:sid` | Elimina un servicio |
 
-Implementa los siguientes métodos:
+### Filtros
 
-### getServices()
+`GET /api/services` permite filtrar servicios utilizando query params.
 
-Obtiene y devuelve todos los servicios almacenados.
+Por categoría:
 
-```javascript
-const services = await serviceManager.getServices();
+```text
+GET /api/services?category=Consultas
 ```
 
-### getServiceById(id)
+Por disponibilidad:
 
-Busca un servicio utilizando su identificador.
-
-```javascript
-const service = await serviceManager.getServiceById(1);
+```text
+GET /api/services?available=true
 ```
 
-Si el servicio no existe, devuelve `null`.
+También pueden combinarse:
 
-### addService(serviceData)
-
-Agrega un nuevo servicio.
-
-```javascript
-const newService = await serviceManager.addService({
-  name: "Consulta general",
-  description: "Consulta inicial de 30 minutos",
-  duration: 30,
-  price: 10000,
-  category: "Consultas",
-  available: true
-});
+```text
+GET /api/services?category=Consultas&available=true
 ```
 
-El método valida que estén presentes los siguientes campos obligatorios:
+### Ejemplo de creación de un servicio
 
-- `name`
-- `description`
-- `duration`
-- `price`
-- `category`
-- `available`
+```json
+{
+  "name": "Consulta nutricional",
+  "description": "Consulta personalizada de nutrición",
+  "duration": 45,
+  "price": 15000,
+  "category": "salud",
+  "available": true
+}
+```
 
-El `id` no debe enviarse al crear un servicio, ya que es generado automáticamente por `ServiceManager`.
+El `id` no debe enviarse en el body porque es generado automáticamente por `ServiceManager`.
 
-### updateService(id, updatedData)
+---
 
-Actualiza los datos de un servicio existente.
+## Reservas
+
+Las reservas se almacenan de forma persistente en:
+
+```text
+src/data/bookings.json
+```
+
+Cada reserva tiene la siguiente estructura:
+
+```json
+{
+  "id": 1,
+  "clientName": "Evelyn Fernandez",
+  "clientEmail": "evelyn@email.com",
+  "date": "2026-09-10",
+  "time": "10:30",
+  "status": "pending",
+  "services": [
+    {
+      "service": 1,
+      "quantity": 2
+    }
+  ]
+}
+```
+
+### Propiedades
+
+- `id`: identificador único generado automáticamente.
+- `clientName`: nombre del cliente.
+- `clientEmail`: correo electrónico del cliente.
+- `date`: fecha de la reserva.
+- `time`: horario de la reserva.
+- `status`: estado de la reserva.
+- `services`: array de servicios asociados a la reserva.
+
+Cada elemento del array `services` tiene la siguiente estructura:
+
+```json
+{
+  "service": 1,
+  "quantity": 1
+}
+```
+
+`service` almacena el identificador del servicio asociado.
+
+Si el mismo servicio se agrega nuevamente a una reserva, no se crea un elemento duplicado. En su lugar, se incrementa el valor de `quantity`.
+
+### Endpoints de reservas
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| POST | `/api/bookings` | Crea una nueva reserva |
+| GET | `/api/bookings/:bid` | Obtiene una reserva por su id |
+| POST | `/api/bookings/:bid/services/:sid` | Agrega un servicio a una reserva |
+
+### Ejemplo de creación de una reserva
+
+```text
+POST /api/bookings
+```
+
+Body:
+
+```json
+{
+  "clientName": "Evelyn Fernandez",
+  "clientEmail": "evelyn@email.com",
+  "date": "2026-09-10",
+  "time": "10:30",
+  "status": "pending"
+}
+```
+
+El `id` se genera automáticamente y la reserva se crea inicialmente con:
+
+```json
+"services": []
+```
+
+### Agregar un servicio a una reserva
 
 Por ejemplo:
 
-```javascript
-const updatedService = await serviceManager.updateService(1, {
-  price: 12000,
-  duration: 45
-});
+```text
+POST /api/bookings/1/services/1
 ```
 
-El método no permite modificar el `id` del servicio.
+Agrega el servicio con `id: 1` a la reserva con `id: 1`.
 
-Si el servicio solicitado no existe, devuelve `null`.
+Antes de realizar la operación, la API valida que tanto la reserva como el servicio existan.
 
-### deleteService(id)
+La primera vez se almacena:
 
-Elimina un servicio utilizando su identificador.
-
-```javascript
-const deletedService = await serviceManager.deleteService(1);
+```json
+{
+  "service": 1,
+  "quantity": 1
+}
 ```
 
-Si el servicio no existe, devuelve `null`.
+Si se realiza nuevamente la misma petición:
+
+```text
+POST /api/bookings/1/services/1
+```
+
+la cantidad se incrementa:
+
+```json
+{
+  "service": 1,
+  "quantity": 2
+}
+```
+
+---
+
+## Managers
+
+La lógica de acceso y modificación de los datos se encuentra separada de las rutas mediante managers.
+
+### ServiceManager
+
+Ubicado en:
+
+```text
+src/managers/ServiceManager.js
+```
+
+Implementa:
+
+- `getServices()`
+- `getServiceById(id)`
+- `addService(serviceData)`
+- `updateService(id, updatedData)`
+- `deleteService(id)`
+
+### BookingManager
+
+Ubicado en:
+
+```text
+src/managers/BookingManager.js
+```
+
+Implementa:
+
+- `createBooking(bookingData)`
+- `getBookingById(id)`
+- `addServiceToBooking(bookingId, serviceId)`
+
+---
+
+## Persistencia con FileSystem
+
+El proyecto utiliza el módulo `fs/promises` de Node.js para leer y escribir información de forma asíncrona.
+
+Los datos se almacenan en:
+
+```text
+src/data/services.json
+src/data/bookings.json
+```
+
+De esta manera, los servicios y reservas persisten aunque el servidor se detenga o reinicie.
+
+---
 
 ## Estructura del proyecto
 
@@ -165,13 +329,20 @@ sistema-turnos/
 │   │   └── env.config.js
 │   │
 │   ├── data/
-│   │   └── services.json
+│   │   ├── services.json
+│   │   └── bookings.json
 │   │
 │   ├── managers/
-│   │   └── ServiceManager.js
+│   │   ├── ServiceManager.js
+│   │   └── BookingManager.js
+│   │
+│   ├── routes/
+│   │   ├── services.router.js
+│   │   └── bookings.router.js
 │   │
 │   └── app.js
 │
+├── server.js
 ├── .env.example
 ├── .gitignore
 ├── package.json
@@ -181,10 +352,17 @@ sistema-turnos/
 
 ## Ejecución
 
-Para iniciar el proyecto:
+Para iniciar el servidor:
 
 ```bash
 npm start
 ```
 
-La aplicación carga y valida las variables de entorno e inicializa el `ServiceManager` para acceder a los servicios almacenados.
+La aplicación carga las variables de entorno, inicia Express y habilita las rutas:
+
+```text
+/api/services
+/api/bookings
+```
+
+Los endpoints pueden probarse utilizando herramientas como Postman.
