@@ -4,78 +4,160 @@ API REST desarrollada con **Node.js, Express y FileSystem** para gestionar servi
 
 El proyecto permite crear, consultar, actualizar y eliminar servicios, además de crear reservas y asociar servicios a cada una de ellas.
 
+La API está organizada utilizando una arquitectura separada en **Routers, Controllers y Managers**, permitiendo dividir responsabilidades y mantener un código más claro, escalable y fácil de mantener.
+
 La información se almacena de forma persistente en archivos JSON, por lo que los datos se mantienen aunque el servidor se reinicie.
+
+---
 
 ## Tecnologías utilizadas
 
 - Node.js
 - JavaScript
 - Express
-- ECMAScript Modules (ESM)
-- File System de Node.js
+- ES Modules
+- FileSystem (`fs/promises`)
+- JSON
 - dotenv
-- JSON para persistencia de datos
+- Postman para pruebas de endpoints
+
+---
+
+## Arquitectura del proyecto
+
+La aplicación utiliza una separación de responsabilidades en tres capas principales:
+
+```text
+Request
+   ↓
+Router
+   ↓
+Controller
+   ↓
+Manager
+   ↓
+JSON
+```
+
+### Routers
+
+Los routers definen los endpoints de la API y los conectan con las funciones correspondientes de los controllers.
+
+No contienen lógica de negocio ni acceden directamente a los archivos JSON.
+
+### Controllers
+
+Los controllers reciben las peticiones HTTP y se encargan de:
+
+- Leer `req.params`
+- Leer `req.query`
+- Leer `req.body`
+- Llamar a los managers
+- Manejar errores
+- Devolver respuestas mediante `res.status().json()`
+
+### Managers
+
+Los managers contienen la lógica relacionada con los datos.
+
+Se encargan de:
+
+- Leer archivos JSON
+- Buscar registros
+- Crear registros
+- Actualizar registros
+- Eliminar registros
+- Persistir los cambios mediante FileSystem
+
+Los managers no utilizan `req` ni `res`.
+
+---
+
+## Estructura del proyecto
+
+```text
+sistema-turnos/
+│
+├── src/
+│   ├── config/
+│   │   └── env.config.js
+│   │
+│   ├── controllers/
+│   │   ├── services.controller.js
+│   │   └── bookings.controller.js
+│   │
+│   ├── managers/
+│   │   ├── ServiceManager.js
+│   │   └── BookingManager.js
+│   │
+│   ├── routes/
+│   │   ├── services.router.js
+│   │   └── bookings.router.js
+│   │
+│   ├── data/
+│   │   ├── services.json
+│   │   └── bookings.json
+│   │
+│   └── app.js
+│
+├── server.js
+├── package.json
+├── package-lock.json
+├── .env.example
+├── .gitignore
+└── README.md
+```
+
+---
 
 ## Instalación
 
-1. Instalar las dependencias:
+Clonar el repositorio:
+
+```bash
+git clone https://github.com/EvelynFernandez93/sistema-turnos.git
+```
+
+Ingresar al proyecto:
+
+```bash
+cd sistema-turnos
+```
+
+Instalar las dependencias:
 
 ```bash
 npm install
 ```
 
-2. Crear un archivo `.env` en la raíz del proyecto tomando como referencia `.env.example`.
+Crear un archivo `.env` tomando como referencia `.env.example`.
 
-3. Configurar las variables de entorno:
+Ejemplo:
 
 ```env
 PORT=8080
 NODE_ENV=development
 ```
 
-4. Iniciar el servidor:
+Iniciar el servidor:
 
 ```bash
 npm start
 ```
 
-El servidor quedará disponible en:
+El servidor estará disponible en:
 
 ```text
 http://localhost:8080
 ```
 
-## Variables de entorno
-
-El proyecto utiliza las siguientes variables:
-
-- `PORT`: puerto en el que se ejecuta el servidor.
-- `NODE_ENV`: entorno de ejecución de la aplicación.
-
-Las variables son cargadas mediante `dotenv` y validadas al iniciar la aplicación.
-
-El archivo `.env` no se incluye en el repositorio. El archivo `.env.example` sirve como referencia de las variables necesarias.
-
 ---
 
 # API REST
 
-La API gestiona dos recursos principales:
-
-- `services`: servicios disponibles para reservar.
-- `bookings`: reservas realizadas por los clientes.
-
----
-
 ## Servicios
 
-Los servicios se almacenan de forma persistente en:
-
-```text
-src/data/services.json
-```
-
-Cada servicio tiene la siguiente estructura:
+Un servicio tiene la siguiente estructura:
 
 ```json
 {
@@ -89,29 +171,21 @@ Cada servicio tiene la siguiente estructura:
 }
 ```
 
-### Propiedades
-
-- `id`: identificador único generado automáticamente.
-- `name`: nombre del servicio.
-- `description`: descripción del servicio.
-- `duration`: duración del servicio.
-- `price`: precio del servicio.
-- `category`: categoría del servicio.
-- `available`: indica si el servicio se encuentra disponible.
-
 ### Endpoints de servicios
 
 | Método | Endpoint | Descripción |
 |---|---|---|
-| GET | `/api/services` | Obtiene todos los servicios |
-| GET | `/api/services/:sid` | Obtiene un servicio por su id |
-| POST | `/api/services` | Crea un nuevo servicio |
-| PUT | `/api/services/:sid` | Actualiza un servicio |
-| DELETE | `/api/services/:sid` | Elimina un servicio |
+| GET | `/api/services` | Obtener todos los servicios |
+| GET | `/api/services/:sid` | Obtener un servicio por ID |
+| POST | `/api/services` | Crear un servicio |
+| PUT | `/api/services/:sid` | Actualizar un servicio |
+| DELETE | `/api/services/:sid` | Eliminar un servicio |
+
+---
 
 ### Filtros
 
-`GET /api/services` permite filtrar servicios utilizando query params.
+`GET /api/services` permite utilizar query parameters.
 
 Por categoría:
 
@@ -125,38 +199,36 @@ Por disponibilidad:
 GET /api/services?available=true
 ```
 
-También pueden combinarse:
+También pueden combinarse.
 
-```text
-GET /api/services?category=Consultas&available=true
+---
+
+### Crear un servicio
+
+```http
+POST /api/services
 ```
 
-### Ejemplo de creación de un servicio
+Ejemplo de body:
 
 ```json
 {
   "name": "Consulta nutricional",
-  "description": "Consulta personalizada de nutrición",
+  "description": "Consulta personalizada",
   "duration": 45,
   "price": 15000,
-  "category": "salud",
+  "category": "Consultas",
   "available": true
 }
 ```
 
-El `id` no debe enviarse en el body porque es generado automáticamente por `ServiceManager`.
+El ID se genera automáticamente.
 
 ---
 
 ## Reservas
 
-Las reservas se almacenan de forma persistente en:
-
-```text
-src/data/bookings.json
-```
-
-Cada reserva tiene la siguiente estructura:
+Una reserva tiene la siguiente estructura:
 
 ```json
 {
@@ -169,50 +241,29 @@ Cada reserva tiene la siguiente estructura:
   "services": [
     {
       "service": 1,
-      "quantity": 2
+      "quantity": 1
     }
   ]
 }
 ```
 
-### Propiedades
-
-- `id`: identificador único generado automáticamente.
-- `clientName`: nombre del cliente.
-- `clientEmail`: correo electrónico del cliente.
-- `date`: fecha de la reserva.
-- `time`: horario de la reserva.
-- `status`: estado de la reserva.
-- `services`: array de servicios asociados a la reserva.
-
-Cada elemento del array `services` tiene la siguiente estructura:
-
-```json
-{
-  "service": 1,
-  "quantity": 1
-}
-```
-
-`service` almacena el identificador del servicio asociado.
-
-Si el mismo servicio se agrega nuevamente a una reserva, no se crea un elemento duplicado. En su lugar, se incrementa el valor de `quantity`.
-
 ### Endpoints de reservas
 
 | Método | Endpoint | Descripción |
 |---|---|---|
-| POST | `/api/bookings` | Crea una nueva reserva |
-| GET | `/api/bookings/:bid` | Obtiene una reserva por su id |
-| POST | `/api/bookings/:bid/services/:sid` | Agrega un servicio a una reserva |
+| POST | `/api/bookings` | Crear una reserva |
+| GET | `/api/bookings/:bid` | Obtener una reserva por ID |
+| POST | `/api/bookings/:bid/services/:sid` | Agregar un servicio a una reserva |
 
-### Ejemplo de creación de una reserva
+---
 
-```text
+### Crear una reserva
+
+```http
 POST /api/bookings
 ```
 
-Body:
+Ejemplo de body:
 
 ```json
 {
@@ -224,25 +275,34 @@ Body:
 }
 ```
 
-El `id` se genera automáticamente y la reserva se crea inicialmente con:
+La reserva se crea inicialmente con:
 
 ```json
 "services": []
 ```
 
+---
+
 ### Agregar un servicio a una reserva
 
-Por ejemplo:
+```http
+POST /api/bookings/:bid/services/:sid
+```
+
+Ejemplo:
 
 ```text
 POST /api/bookings/1/services/1
 ```
 
-Agrega el servicio con `id: 1` a la reserva con `id: 1`.
+Antes de agregar el servicio, el controller valida que:
 
-Antes de realizar la operación, la API valida que tanto la reserva como el servicio existan.
+1. La reserva exista.
+2. El servicio exista.
 
-La primera vez se almacena:
+La existencia del servicio se verifica mediante `ServiceManager`.
+
+Si el servicio todavía no está agregado:
 
 ```json
 {
@@ -251,13 +311,7 @@ La primera vez se almacena:
 }
 ```
 
-Si se realiza nuevamente la misma petición:
-
-```text
-POST /api/bookings/1/services/1
-```
-
-la cantidad se incrementa:
+Si el mismo servicio se agrega nuevamente, se incrementa `quantity`:
 
 ```json
 {
@@ -268,45 +322,70 @@ la cantidad se incrementa:
 
 ---
 
-## Managers
+## Controllers
 
-La lógica de acceso y modificación de los datos se encuentra separada de las rutas mediante managers.
+### services.controller.js
 
-### ServiceManager
+Contiene las funciones:
 
-Ubicado en:
+- `getServices`
+- `getServiceById`
+- `createService`
+- `updateService`
+- `deleteService`
 
-```text
-src/managers/ServiceManager.js
-```
+Estas funciones interactúan con `ServiceManager`.
 
-Implementa:
+### bookings.controller.js
 
-- `getServices()`
-- `getServiceById(id)`
-- `addService(serviceData)`
-- `updateService(id, updatedData)`
-- `deleteService(id)`
+Contiene las funciones:
 
-### BookingManager
+- `createBooking`
+- `getBookingById`
+- `addServiceToBooking`
 
-Ubicado en:
+Estas funciones interactúan con `BookingManager`.
 
-```text
-src/managers/BookingManager.js
-```
-
-Implementa:
-
-- `createBooking(bookingData)`
-- `getBookingById(id)`
-- `addServiceToBooking(bookingId, serviceId)`
+`addServiceToBooking` también utiliza `ServiceManager` para verificar que el servicio solicitado exista.
 
 ---
 
-## Persistencia con FileSystem
+## Managers
 
-El proyecto utiliza el módulo `fs/promises` de Node.js para leer y escribir información de forma asíncrona.
+### ServiceManager
+
+Administra la información almacenada en `services.json`.
+
+Principales operaciones:
+
+- Obtener servicios
+- Buscar servicios por ID
+- Crear servicios
+- Actualizar servicios
+- Eliminar servicios
+- Generar IDs automáticamente
+
+### BookingManager
+
+Administra la información almacenada en `bookings.json`.
+
+Principales operaciones:
+
+- Crear reservas
+- Buscar reservas por ID
+- Agregar servicios a una reserva
+- Incrementar la cantidad cuando un servicio ya está agregado
+- Persistir los cambios en el archivo JSON
+
+---
+
+## Persistencia
+
+La aplicación utiliza FileSystem mediante:
+
+```javascript
+fs/promises
+```
 
 Los datos se almacenan en:
 
@@ -315,40 +394,36 @@ src/data/services.json
 src/data/bookings.json
 ```
 
-De esta manera, los servicios y reservas persisten aunque el servidor se detenga o reinicie.
+Esto permite que la información permanezca guardada aunque el servidor sea reiniciado.
 
 ---
 
-## Estructura del proyecto
+## Códigos de estado utilizados
 
-```text
-sistema-turnos/
-│
-├── src/
-│   ├── config/
-│   │   └── env.config.js
-│   │
-│   ├── data/
-│   │   ├── services.json
-│   │   └── bookings.json
-│   │
-│   ├── managers/
-│   │   ├── ServiceManager.js
-│   │   └── BookingManager.js
-│   │
-│   ├── routes/
-│   │   ├── services.router.js
-│   │   └── bookings.router.js
-│   │
-│   └── app.js
-│
-├── server.js
-├── .env.example
-├── .gitignore
-├── package.json
-├── package-lock.json
-└── README.md
+La API utiliza códigos HTTP para indicar el resultado de cada operación:
+
+- `200 OK`: operación realizada correctamente.
+- `201 Created`: recurso creado correctamente.
+- `400 Bad Request`: datos inválidos o incompletos.
+- `404 Not Found`: servicio o reserva no encontrada.
+- `500 Internal Server Error`: error interno del servidor.
+
+---
+
+## Variables de entorno
+
+Las variables utilizadas por el proyecto son:
+
+```env
+PORT=
+NODE_ENV=
 ```
+
+El archivo `.env` no se incluye en el repositorio.
+
+Se proporciona `.env.example` como referencia para configurar el proyecto.
+
+---
 
 ## Ejecución
 
@@ -358,11 +433,29 @@ Para iniciar el servidor:
 npm start
 ```
 
-La aplicación carga las variables de entorno, inicia Express y habilita las rutas:
+El comando ejecuta:
 
-```text
-/api/services
-/api/bookings
+```bash
+node server.js
 ```
 
-Los endpoints pueden probarse utilizando herramientas como Postman.
+Una vez iniciado correctamente se mostrará:
+
+```text
+Servidor escuchando en el puerto 8080
+```
+
+---
+
+## Estado del proyecto
+
+Actualmente la API cuenta con:
+
+- Gestión CRUD de servicios.
+- Creación y consulta de reservas.
+- Asociación de servicios a reservas.
+- Incremento de cantidad de servicios repetidos.
+- Persistencia mediante archivos JSON.
+- Configuración mediante variables de entorno.
+- Arquitectura separada en Routers, Controllers y Managers.
+- Manejo de respuestas y códigos HTTP.
