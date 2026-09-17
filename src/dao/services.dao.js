@@ -10,19 +10,19 @@ const servicesPath = path.join(
   "../data/services.json"
 );
 
-class ServiceManager {
+class ServicesDAO {
   constructor() {
     this.path = servicesPath;
   }
 
-  async getServices() {
+  async getAll() {
     const data = await fs.readFile(this.path, "utf-8");
 
     return JSON.parse(data);
   }
 
-  async getServiceById(id) {
-    const services = await this.getServices();
+  async getById(id) {
+    const services = await this.getAll();
 
     const service = services.find(
       (service) => service.id === Number(id)
@@ -31,28 +31,8 @@ class ServiceManager {
     return service || null;
   }
 
-  async addService(serviceData) {
-    const requiredFields = [
-      "name",
-      "description",
-      "duration",
-      "price",
-      "category",
-      "available"
-    ];
-
-    const missingFields = requiredFields.filter(
-      (field) =>
-        !Object.prototype.hasOwnProperty.call(serviceData, field)
-    );
-
-    if (missingFields.length > 0) {
-      throw new Error(
-        `Faltan campos obligatorios: ${missingFields.join(", ")}`
-      );
-    }
-
-    const services = await this.getServices();
+  async create(serviceData) {
+    const services = await this.getAll();
 
     const newId =
       services.length === 0
@@ -61,12 +41,7 @@ class ServiceManager {
 
     const newService = {
       id: newId,
-      name: serviceData.name,
-      description: serviceData.description,
-      duration: serviceData.duration,
-      price: serviceData.price,
-      category: serviceData.category,
-      available: serviceData.available
+      ...serviceData
     };
 
     services.push(newService);
@@ -79,12 +54,8 @@ class ServiceManager {
     return newService;
   }
 
-  async updateService(id, updatedData) {
-    if (Object.prototype.hasOwnProperty.call(updatedData, "id")) {
-      throw new Error("No está permitido modificar el id");
-    }
-
-    const services = await this.getServices();
+  async update(id, updatedData) {
+    const services = await this.getAll();
 
     const serviceIndex = services.findIndex(
       (service) => service.id === Number(id)
@@ -96,7 +67,8 @@ class ServiceManager {
 
     services[serviceIndex] = {
       ...services[serviceIndex],
-      ...updatedData
+      ...updatedData,
+      id: services[serviceIndex].id
     };
 
     await fs.writeFile(
@@ -107,8 +79,8 @@ class ServiceManager {
     return services[serviceIndex];
   }
 
-  async deleteService(id) {
-    const services = await this.getServices();
+  async delete(id) {
+    const services = await this.getAll();
 
     const serviceIndex = services.findIndex(
       (service) => service.id === Number(id)
@@ -129,4 +101,4 @@ class ServiceManager {
   }
 }
 
-export default ServiceManager;
+export default ServicesDAO;

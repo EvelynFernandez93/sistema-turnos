@@ -12,5 +12,19 @@
         "quantity": 4
       }
     ]
+  },
+  {
+    "id": 2,
+    "clientName": "Cliente Prueba",
+    "clientEmail": "cliente@prueba.com",
+    "date": "2026-09-20",
+    "time": "11:00",
+    "status": "pending",
+    "services": [
+      {
+        "service": 1,
+        "quantity": 2
+      }
+    ]
   }
 ]

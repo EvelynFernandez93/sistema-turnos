@@ -1,28 +1,15 @@
-import ServiceManager from "../managers/ServiceManager.js";
-
-const serviceManager = new ServiceManager();
+import {
+  getServices as getServicesService,
+  getServiceById as getServiceByIdService,
+  createService as createServiceService,
+  updateService as updateServiceService,
+  deleteService as deleteServiceService
+} from "../services/services.service.js";
 
 // GET /api/services
 export const getServices = async (req, res) => {
   try {
-    let services = await serviceManager.getServices();
-
-    const { category, available } = req.query;
-
-    if (category) {
-      services = services.filter(
-        (service) =>
-          service.category.toLowerCase() === category.toLowerCase()
-      );
-    }
-
-    if (available !== undefined) {
-      const availableValue = available === "true";
-
-      services = services.filter(
-        (service) => service.available === availableValue
-      );
-    }
+    const services = await getServicesService(req.query);
 
     res.status(200).json(services);
   } catch (error) {
@@ -37,7 +24,7 @@ export const getServiceById = async (req, res) => {
   try {
     const { sid } = req.params;
 
-    const service = await serviceManager.getServiceById(sid);
+    const service = await getServiceByIdService(sid);
 
     if (!service) {
       return res.status(404).json({
@@ -56,7 +43,7 @@ export const getServiceById = async (req, res) => {
 // POST /api/services
 export const createService = async (req, res) => {
   try {
-    const newService = await serviceManager.addService(req.body);
+    const newService = await createServiceService(req.body);
 
     res.status(201).json(newService);
   } catch (error) {
@@ -71,7 +58,7 @@ export const updateService = async (req, res) => {
   try {
     const { sid } = req.params;
 
-    const updatedService = await serviceManager.updateService(
+    const updatedService = await updateServiceService(
       sid,
       req.body
     );
@@ -95,7 +82,7 @@ export const deleteService = async (req, res) => {
   try {
     const { sid } = req.params;
 
-    const deletedService = await serviceManager.deleteService(sid);
+    const deletedService = await deleteServiceService(sid);
 
     if (!deletedService) {
       return res.status(404).json({

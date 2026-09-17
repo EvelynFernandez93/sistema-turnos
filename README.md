@@ -1,12 +1,12 @@
 # Sistema Backend de Turnos y Reservas
 
-API REST desarrollada con **Node.js, Express y FileSystem** para gestionar servicios y reservas de un sistema de turnos.
+API REST desarrollada con **Node.js, Express y FileSystem** para gestionar servicios y reservas.
 
 El proyecto permite crear, consultar, actualizar y eliminar servicios, además de crear reservas y asociar servicios a cada una de ellas.
 
-La API está organizada utilizando una arquitectura separada en **Routers, Controllers y Managers**, permitiendo dividir responsabilidades y mantener un código más claro, escalable y fácil de mantener.
+Actualmente la aplicación utiliza una **arquitectura en capas**, separando las responsabilidades entre Routers, Controllers, Services, Repositories y DAOs.
 
-La información se almacena de forma persistente en archivos JSON, por lo que los datos se mantienen aunque el servidor se reinicie.
+Esta organización permite mantener el código desacoplado, escalable y preparado para futuras migraciones de persistencia, como MongoDB y Mongoose.
 
 ---
 
@@ -19,13 +19,15 @@ La información se almacena de forma persistente en archivos JSON, por lo que lo
 - FileSystem (`fs/promises`)
 - JSON
 - dotenv
-- Postman para pruebas de endpoints
+- Postman
+- Git
+- GitHub
 
 ---
 
 ## Arquitectura del proyecto
 
-La aplicación utiliza una separación de responsabilidades en tres capas principales:
+La aplicación utiliza el siguiente flujo:
 
 ```text
 Request
@@ -34,42 +36,158 @@ Router
    ↓
 Controller
    ↓
-Manager
+Service
    ↓
-JSON
+Repository
+   ↓
+DAO
+   ↓
+Archivo JSON
 ```
 
-### Routers
+Cada capa tiene una responsabilidad específica.
 
-Los routers definen los endpoints de la API y los conectan con las funciones correspondientes de los controllers.
+### Router
 
-No contienen lógica de negocio ni acceden directamente a los archivos JSON.
+Define los endpoints de la API y conecta cada ruta con su Controller.
 
-### Controllers
+Ejemplo:
 
-Los controllers reciben las peticiones HTTP y se encargan de:
+```javascript
+router.get("/", getServices);
+router.get("/:sid", getServiceById);
+router.post("/", createService);
+router.put("/:sid", updateService);
+router.delete("/:sid", deleteService);
+```
 
-- Leer `req.params`
-- Leer `req.query`
-- Leer `req.body`
-- Llamar a los managers
-- Manejar errores
-- Devolver respuestas mediante `res.status().json()`
+Los Routers no contienen reglas de negocio ni acceden directamente a los datos.
 
-### Managers
+---
 
-Los managers contienen la lógica relacionada con los datos.
+### Controller
 
-Se encargan de:
+Recibe las solicitudes HTTP, obtiene información desde:
 
-- Leer archivos JSON
-- Buscar registros
-- Crear registros
-- Actualizar registros
-- Eliminar registros
-- Persistir los cambios mediante FileSystem
+- `req.params`
+- `req.query`
+- `req.body`
 
-Los managers no utilizan `req` ni `res`.
+Luego llama al Service correspondiente y genera la respuesta utilizando:
+
+```javascript
+res.status().json()
+```
+
+Ejemplo:
+
+```javascript
+export const getServiceById = async (req, res) => {
+  try {
+    const { sid } = req.params;
+
+    const service = await getServiceByIdService(sid);
+
+    if (!service) {
+      return res.status(404).json({
+        error: "Servicio no encontrado"
+      });
+    }
+
+    res.status(200).json(service);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
+```
+
+Los Controllers son la única capa que trabaja directamente con `req` y `res`.
+
+---
+
+### Service
+
+Contiene las reglas de negocio de la aplicación.
+
+Los Services reciben datos desde los Controllers y utilizan los Repositories para consultar o modificar información.
+
+No conocen `req`, `res`, FileSystem ni los archivos JSON.
+
+Ejemplos de reglas de negocio:
+
+- Validar campos obligatorios.
+- Evitar la modificación del ID de un servicio.
+- Aplicar filtros de servicios.
+- Verificar que una reserva exista.
+- Verificar que un servicio exista.
+- Incrementar la cantidad de un servicio ya agregado a una reserva.
+
+Una de las reglas principales del sistema es:
+
+```javascript
+if (existingService) {
+  existingService.quantity += 1;
+} else {
+  booking.services.push({
+    service: Number(serviceId),
+    quantity: 1
+  });
+}
+```
+
+Esta lógica pertenece a `bookings.service.js`.
+
+Si el mismo servicio se agrega nuevamente a una reserva, no se duplica el registro sino que aumenta su `quantity`.
+
+---
+
+### Repository
+
+Los Repositories ofrecen una interfaz de acceso a los datos para los Services.
+
+No contienen reglas de negocio y no acceden directamente a los archivos JSON.
+
+Ejemplo:
+
+```javascript
+async getById(id) {
+  return await this.dao.getById(id);
+}
+```
+
+De esta forma, los Services no necesitan conocer cómo se almacenan físicamente los datos.
+
+---
+
+### DAO
+
+DAO significa **Data Access Object**.
+
+Es la capa responsable del acceso directo a la persistencia.
+
+Actualmente los DAOs utilizan FileSystem para leer y escribir los archivos JSON mediante:
+
+```javascript
+fs.readFile()
+```
+
+y:
+
+```javascript
+fs.writeFile()
+```
+
+Por ejemplo:
+
+```javascript
+const data = await fs.readFile(this.path, "utf-8");
+
+return JSON.parse(data);
+```
+
+Los DAOs no contienen reglas de negocio.
 
 ---
 
@@ -79,6 +197,7 @@ Los managers no utilizan `req` ni `res`.
 sistema-turnos/
 │
 ├── src/
+│   │
 │   ├── config/
 │   │   └── env.config.js
 │   │
@@ -86,9 +205,17 @@ sistema-turnos/
 │   │   ├── services.controller.js
 │   │   └── bookings.controller.js
 │   │
-│   ├── managers/
-│   │   ├── ServiceManager.js
-│   │   └── BookingManager.js
+│   ├── services/
+│   │   ├── services.service.js
+│   │   └── bookings.service.js
+│   │
+│   ├── repositories/
+│   │   ├── services.repository.js
+│   │   └── bookings.repository.js
+│   │
+│   ├── dao/
+│   │   ├── services.dao.js
+│   │   └── bookings.dao.js
 │   │
 │   ├── routes/
 │   │   ├── services.router.js
@@ -110,7 +237,7 @@ sistema-turnos/
 
 ---
 
-## Instalación
+# Instalación
 
 Clonar el repositorio:
 
@@ -130,7 +257,7 @@ Instalar las dependencias:
 npm install
 ```
 
-Crear un archivo `.env` tomando como referencia `.env.example`.
+Crear un archivo `.env` en la raíz del proyecto utilizando `.env.example` como referencia.
 
 Ejemplo:
 
@@ -139,7 +266,7 @@ PORT=8080
 NODE_ENV=development
 ```
 
-Iniciar el servidor:
+Ejecutar el servidor:
 
 ```bash
 npm start
@@ -157,49 +284,59 @@ http://localhost:8080
 
 ## Servicios
 
-Un servicio tiene la siguiente estructura:
+### Obtener todos los servicios
 
-```json
-{
-  "id": 1,
-  "name": "Consulta general",
-  "description": "Consulta inicial de 30 minutos",
-  "duration": 30,
-  "price": 10000,
-  "category": "Consultas",
-  "available": true
-}
+```http
+GET /api/services
 ```
 
-### Endpoints de servicios
+Ejemplo:
 
-| Método | Endpoint | Descripción |
-|---|---|---|
-| GET | `/api/services` | Obtener todos los servicios |
-| GET | `/api/services/:sid` | Obtener un servicio por ID |
-| POST | `/api/services` | Crear un servicio |
-| PUT | `/api/services/:sid` | Actualizar un servicio |
-| DELETE | `/api/services/:sid` | Eliminar un servicio |
+```http
+GET http://localhost:8080/api/services
+```
 
 ---
 
-### Filtros
+### Filtrar servicios
 
-`GET /api/services` permite utilizar query parameters.
-
-Por categoría:
-
-```text
-GET /api/services?category=Consultas
-```
+Se pueden utilizar query parameters.
 
 Por disponibilidad:
 
-```text
+```http
 GET /api/services?available=true
 ```
 
-También pueden combinarse.
+Por categoría:
+
+```http
+GET /api/services?category=Consultas
+```
+
+Los parámetros son recibidos por el Controller y la lógica de filtrado es procesada por el Service.
+
+---
+
+### Obtener un servicio por ID
+
+```http
+GET /api/services/:sid
+```
+
+Ejemplo:
+
+```http
+GET /api/services/1
+```
+
+Si el servicio no existe:
+
+```json
+{
+  "error": "Servicio no encontrado"
+}
+```
 
 ---
 
@@ -209,81 +346,125 @@ También pueden combinarse.
 POST /api/services
 ```
 
-Ejemplo de body:
+Ejemplo de Body:
 
 ```json
 {
-  "name": "Consulta nutricional",
-  "description": "Consulta personalizada",
-  "duration": 45,
-  "price": 15000,
+  "name": "Consulta general",
+  "description": "Consulta inicial de 30 minutos",
+  "duration": 30,
+  "price": 10000,
   "category": "Consultas",
   "available": true
 }
 ```
 
-El ID se genera automáticamente.
+Los campos obligatorios son:
+
+- `name`
+- `description`
+- `duration`
+- `price`
+- `category`
+- `available`
+
+Si faltan campos obligatorios, la API responde con `400 Bad Request`.
 
 ---
 
-## Reservas
+### Actualizar un servicio
 
-Una reserva tiene la siguiente estructura:
+```http
+PUT /api/services/:sid
+```
+
+Ejemplo:
+
+```http
+PUT /api/services/1
+```
+
+Body:
 
 ```json
 {
-  "id": 1,
-  "clientName": "Evelyn Fernandez",
-  "clientEmail": "evelyn@email.com",
-  "date": "2026-09-10",
-  "time": "10:30",
-  "status": "pending",
-  "services": [
-    {
-      "service": 1,
-      "quantity": 1
-    }
-  ]
+  "price": 12000
 }
 ```
 
-### Endpoints de reservas
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| POST | `/api/bookings` | Crear una reserva |
-| GET | `/api/bookings/:bid` | Obtener una reserva por ID |
-| POST | `/api/bookings/:bid/services/:sid` | Agregar un servicio a una reserva |
+El ID del servicio no puede modificarse.
 
 ---
 
-### Crear una reserva
+### Eliminar un servicio
+
+```http
+DELETE /api/services/:sid
+```
+
+Ejemplo:
+
+```http
+DELETE /api/services/1
+```
+
+---
+
+# Reservas
+
+## Crear una reserva
 
 ```http
 POST /api/bookings
 ```
 
-Ejemplo de body:
+Ejemplo de Body:
 
 ```json
 {
-  "clientName": "Evelyn Fernandez",
-  "clientEmail": "evelyn@email.com",
-  "date": "2026-09-10",
-  "time": "10:30",
+  "clientName": "Cliente Prueba",
+  "clientEmail": "cliente@prueba.com",
+  "date": "2026-09-20",
+  "time": "11:00",
   "status": "pending"
 }
 ```
 
-La reserva se crea inicialmente con:
+La reserva se crea automáticamente con:
 
 ```json
-"services": []
+{
+  "services": []
+}
+```
+
+y el ID es generado automáticamente por el sistema.
+
+---
+
+## Obtener una reserva por ID
+
+```http
+GET /api/bookings/:bid
+```
+
+Ejemplo:
+
+```http
+GET /api/bookings/1
+```
+
+Si la reserva no existe:
+
+```json
+{
+  "error": "Reserva no encontrada"
+}
 ```
 
 ---
 
-### Agregar un servicio a una reserva
+## Agregar un servicio a una reserva
 
 ```http
 POST /api/bookings/:bid/services/:sid
@@ -291,18 +472,20 @@ POST /api/bookings/:bid/services/:sid
 
 Ejemplo:
 
-```text
+```http
 POST /api/bookings/1/services/1
 ```
 
-Antes de agregar el servicio, el controller valida que:
+Este endpoint no necesita información en el Body.
 
-1. La reserva exista.
-2. El servicio exista.
+Los IDs de la reserva y del servicio se obtienen mediante `req.params`.
 
-La existencia del servicio se verifica mediante `ServiceManager`.
+Antes de agregar el servicio, la capa Service verifica:
 
-Si el servicio todavía no está agregado:
+1. Que la reserva exista.
+2. Que el servicio exista.
+
+Si el servicio todavía no pertenece a la reserva, se agrega:
 
 ```json
 {
@@ -311,7 +494,7 @@ Si el servicio todavía no está agregado:
 }
 ```
 
-Si el mismo servicio se agrega nuevamente, se incrementa `quantity`:
+Si el mismo servicio se agrega nuevamente:
 
 ```json
 {
@@ -320,99 +503,160 @@ Si el mismo servicio se agrega nuevamente, se incrementa `quantity`:
 }
 ```
 
----
-
-## Controllers
-
-### services.controller.js
-
-Contiene las funciones:
-
-- `getServices`
-- `getServiceById`
-- `createService`
-- `updateService`
-- `deleteService`
-
-Estas funciones interactúan con `ServiceManager`.
-
-### bookings.controller.js
-
-Contiene las funciones:
-
-- `createBooking`
-- `getBookingById`
-- `addServiceToBooking`
-
-Estas funciones interactúan con `BookingManager`.
-
-`addServiceToBooking` también utiliza `ServiceManager` para verificar que el servicio solicitado exista.
+La lógica de incremento de `quantity` se encuentra exclusivamente en `bookings.service.js`.
 
 ---
 
-## Managers
+# Funciones por capa
 
-### ServiceManager
+## Services Controller
 
-Administra la información almacenada en `services.json`.
+Expone:
 
-Principales operaciones:
-
-- Obtener servicios
-- Buscar servicios por ID
-- Crear servicios
-- Actualizar servicios
-- Eliminar servicios
-- Generar IDs automáticamente
-
-### BookingManager
-
-Administra la información almacenada en `bookings.json`.
-
-Principales operaciones:
-
-- Crear reservas
-- Buscar reservas por ID
-- Agregar servicios a una reserva
-- Incrementar la cantidad cuando un servicio ya está agregado
-- Persistir los cambios en el archivo JSON
-
----
-
-## Persistencia
-
-La aplicación utiliza FileSystem mediante:
-
-```javascript
-fs/promises
+```text
+getServices
+getServiceById
+createService
+updateService
+deleteService
 ```
 
-Los datos se almacenan en:
+---
+
+## Services Service
+
+Expone:
+
+```text
+getServices
+getServiceById
+createService
+updateService
+deleteService
+```
+
+Contiene las validaciones y reglas de negocio relacionadas con los servicios.
+
+---
+
+## Services Repository
+
+Expone:
+
+```text
+getAll
+getById
+create
+update
+delete
+```
+
+---
+
+## Services DAO
+
+Expone:
+
+```text
+getAll
+getById
+create
+update
+delete
+```
+
+Realiza la lectura y escritura de `services.json`.
+
+---
+
+## Bookings Controller
+
+Expone:
+
+```text
+createBooking
+getBookingById
+addServiceToBooking
+```
+
+---
+
+## Bookings Service
+
+Expone:
+
+```text
+createBooking
+getBookingById
+addServiceToBooking
+```
+
+Contiene las reglas de negocio de las reservas, incluyendo el incremento de `quantity`.
+
+---
+
+## Bookings Repository
+
+Expone:
+
+```text
+create
+getById
+update
+```
+
+---
+
+## Bookings DAO
+
+Expone:
+
+```text
+create
+getById
+update
+```
+
+Realiza la lectura y escritura de `bookings.json`.
+
+---
+
+# Persistencia
+
+Actualmente la aplicación utiliza archivos JSON como mecanismo de persistencia:
 
 ```text
 src/data/services.json
 src/data/bookings.json
 ```
 
-Esto permite que la información permanezca guardada aunque el servidor sea reiniciado.
+La lectura y escritura de estos archivos se realiza exclusivamente desde los DAOs utilizando `fs/promises`.
+
+Esto permite que la información sobreviva al reinicio del servidor.
+
+La arquitectura está preparada para que la persistencia pueda migrarse posteriormente hacia una base de datos sin mezclar esa implementación con Controllers o reglas de negocio.
 
 ---
 
-## Códigos de estado utilizados
+# Códigos de estado HTTP
 
-La API utiliza códigos HTTP para indicar el resultado de cada operación:
+La API utiliza los siguientes códigos principales:
 
-- `200 OK`: operación realizada correctamente.
-- `201 Created`: recurso creado correctamente.
-- `400 Bad Request`: datos inválidos o incompletos.
-- `404 Not Found`: servicio o reserva no encontrada.
-- `500 Internal Server Error`: error interno del servidor.
+| Código | Significado |
+|---|---|
+| `200` | Operación realizada correctamente |
+| `201` | Recurso creado correctamente |
+| `400` | Datos incorrectos o incompletos |
+| `404` | Recurso no encontrado |
+| `500` | Error interno del servidor |
 
 ---
 
-## Variables de entorno
+# Variables de entorno
 
-Las variables utilizadas por el proyecto son:
+El proyecto utiliza `dotenv` para gestionar variables de entorno.
+
+Variables requeridas:
 
 ```env
 PORT=
@@ -421,41 +665,92 @@ NODE_ENV=
 
 El archivo `.env` no se incluye en el repositorio.
 
-Se proporciona `.env.example` como referencia para configurar el proyecto.
+Se proporciona `.env.example` como referencia.
 
 ---
 
-## Ejecución
+# Seguridad del repositorio
 
-Para iniciar el servidor:
+El archivo `.gitignore` evita subir información o dependencias que no deben formar parte del repositorio:
 
-```bash
-npm start
+```gitignore
+node_modules/
+.env
 ```
 
-El comando ejecuta:
+Por lo tanto, el repositorio no incluye:
 
-```bash
-node server.js
-```
+- `node_modules`
+- `.env`
+- credenciales reales
 
-Una vez iniciado correctamente se mostrará:
+---
+
+# Refactorización realizada
+
+La primera versión de la aplicación concentraba el acceso a datos y las reglas de negocio dentro de Managers.
+
+La arquitectura anterior era:
 
 ```text
-Servidor escuchando en el puerto 8080
+Router
+   ↓
+Controller
+   ↓
+Manager
+   ↓
+JSON
 ```
+
+Luego de la refactorización, los Managers fueron eliminados y sus responsabilidades fueron distribuidas correctamente.
+
+La arquitectura actual es:
+
+```text
+Router
+   ↓
+Controller
+   ↓
+Service
+   ↓
+Repository
+   ↓
+DAO
+   ↓
+JSON
+```
+
+Este cambio no modifica el comportamiento externo de la API ni sus endpoints.
+
+El objetivo es separar responsabilidades y facilitar el mantenimiento, las pruebas y futuras modificaciones en el mecanismo de persistencia.
 
 ---
 
-## Estado del proyecto
+# Estado actual del proyecto
 
-Actualmente la API cuenta con:
+La API permite:
 
-- Gestión CRUD de servicios.
-- Creación y consulta de reservas.
-- Asociación de servicios a reservas.
-- Incremento de cantidad de servicios repetidos.
-- Persistencia mediante archivos JSON.
-- Configuración mediante variables de entorno.
-- Arquitectura separada en Routers, Controllers y Managers.
-- Manejo de respuestas y códigos HTTP.
+- Consultar servicios.
+- Filtrar servicios por categoría y disponibilidad.
+- Consultar servicios por ID.
+- Crear servicios.
+- Actualizar servicios.
+- Eliminar servicios.
+- Crear reservas.
+- Consultar reservas por ID.
+- Asociar servicios a reservas.
+- Incrementar `quantity` cuando un servicio ya existe en una reserva.
+- Validar reservas y servicios inexistentes.
+- Persistir los datos mediante FileSystem.
+- Gestionar variables de entorno.
+- Separar rutas, Controllers, Services, Repositories y DAOs.
+
+Todos los endpoints mantienen las mismas URLs utilizadas antes de la refactorización.
+
+---
+
+## Autora
+
+**Evelyn Fernandez**
+
+Proyecto desarrollado como parte del curso de Backend.
