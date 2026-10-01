@@ -1,0 +1,99 @@
+<section>
+
+    <h2>{{title}}</h2>
+
+    <div class="services-container" id="services-container">
+
+        {{#if services.length}}
+
+            {{#each services}}
+
+                <article class="service-card">
+
+                    <h3>{{name}}</h3>
+
+                    <p class="service-card-options">
+
+                        <strong class="service-card-options-title">
+                            Descripción:
+                        </strong>
+
+                        <span class="service-card-options-value">
+                            {{description}}
+                        </span>
+
+                    </p>
+
+                    <p class="service-card-options">
+
+                        <strong class="service-card-options-title">
+                            Duración:
+                        </strong>
+
+                        <span class="service-card-options-value">
+                            {{duration}} minutos
+                        </span>
+
+                    </p>
+
+                    <p class="service-card-options">
+
+                        <strong class="service-card-options-title">
+                            Precio:
+                        </strong>
+
+                        <span class="service-card-options-value">
+                            ${{price}}
+                        </span>
+
+                    </p>
+
+                    <p class="service-card-options">
+
+                        <strong class="service-card-options-title">
+                            Categoría:
+                        </strong>
+
+                        <span class="service-card-options-value">
+                            {{category}}
+                        </span>
+
+                    </p>
+
+                    <p class="service-card-options">
+
+                        <strong class="service-card-options-title">
+                            Disponibilidad:
+                        </strong>
+
+                        {{#if available}}
+
+                            <span class="availability-status available">
+                                Disponible
+                            </span>
+
+                        {{else}}
+
+                            <span class="availability-status unavailable">
+                                No disponible
+                            </span>
+
+                        {{/if}}
+
+                    </p>
+
+                </article>
+
+            {{/each}}
+
+        {{else}}
+
+            <p id="empty-services-message">
+                No hay servicios disponibles.
+            </p>
+
+        {{/if}}
+
+    </div>
+
+</section>

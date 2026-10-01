@@ -1,3 +1,4 @@
+import { getSocketServer } from "../config/socket.config.js";
 import {
   getServices as getServicesService,
   getServiceById as getServiceByIdService,
@@ -45,7 +46,16 @@ export const createService = async (req, res) => {
   try {
     const newService = await createServiceService(req.body);
 
+    // Emitir evento en tiempo real
+    const io = getSocketServer();
+
+    io.emit("serviceCreated", {
+      message: "Se creó un nuevo servicio",
+      service: newService
+    });
+
     res.status(201).json(newService);
+
   } catch (error) {
     res.status(400).json({
       error: error.message

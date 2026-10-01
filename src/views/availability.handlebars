@@ -1,0 +1,73 @@
+<section>
+
+    <h2>{{title}}</h2>
+
+    {{#if services.length}}
+
+        <div class="services-container">
+
+            {{#each services}}
+
+                <article class="service-card">
+
+                    <h3>{{name}}</h3>
+
+                    <p class="service-card-options">
+
+                        <strong class="service-card-options-title">
+                            Categoría:
+                        </strong>
+
+                        <span class="service-card-options-value">
+                            {{category}}
+                        </span>
+
+                    </p>
+
+                    <p class="service-card-options">
+
+                        <strong class="service-card-options-title">
+                            Duración:
+                        </strong>
+
+                        <span class="service-card-options-value">
+                            {{duration}} minutos
+                        </span>
+
+                    </p>
+
+                    <p class="service-card-options">
+
+                        <strong class="service-card-options-title">
+                            Estado:
+                        </strong>
+
+                        {{#if available}}
+
+                            <span class="availability-status available">
+                                Disponible
+                            </span>
+
+                        {{else}}
+
+                            <span class="availability-status unavailable">
+                                No disponible
+                            </span>
+
+                        {{/if}}
+
+                    </p>
+
+                </article>
+
+            {{/each}}
+
+        </div>
+
+    {{else}}
+
+        <p>No hay servicios registrados.</p>
+
+    {{/if}}
+
+</section>
