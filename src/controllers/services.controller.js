@@ -10,12 +10,27 @@ import {
 // GET /api/services
 export const getServices = async (req, res) => {
   try {
-    const services = await getServicesService(req.query);
 
-    res.status(200).json(services);
+    // Obtener servicios con filtros y paginación
+    const result = await getServicesService(req.query);
+
+    // Responder con resultados y metadatos
+    return res.status(200).json(result);
+
   } catch (error) {
-    res.status(500).json({
-      error: error.message
+
+    // Error de validación
+    if (error.statusCode === 400) {
+      return res.status(400).json({
+        error: error.message
+      });
+    }
+
+    // Error interno del servidor
+    console.error("Error al obtener servicios:", error);
+
+    return res.status(500).json({
+      error: "Error interno del servidor"
     });
   }
 };

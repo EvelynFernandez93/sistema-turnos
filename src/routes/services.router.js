@@ -8,12 +8,38 @@ import {
   deleteService
 } from "../controllers/services.controller.js";
 
+// Middleware de validación
+import { validate } from "../middlewares/validate.middleware.js";
+
+// Esquemas de Zod
+import {
+  createServiceSchema,
+  updateServiceSchema
+} from "../schemas/services.schema.js";
+
 const router = express.Router();
 
+// Obtener servicios
 router.get("/", getServices);
+
+// Obtener servicio por ID
 router.get("/:sid", getServiceById);
-router.post("/", createService);
-router.put("/:sid", updateService);
+
+// Crear servicio
+router.post(
+  "/",
+  validate(createServiceSchema),
+  createService
+);
+
+// Actualizar servicio
+router.put(
+  "/:sid",
+  validate(updateServiceSchema),
+  updateService
+);
+
+// Eliminar servicio
 router.delete("/:sid", deleteService);
 
 export default router;

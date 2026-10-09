@@ -45,38 +45,53 @@ export const getBookingById = async (id) => {
 // Agregar un servicio a una reserva
 export const addServiceToBooking = async (
   bookingId,
-  serviceId
+  serviceId,
+  quantity = 1
 ) => {
+
+  // Buscar la reserva
   const booking = await bookingsRepository.getById(bookingId);
 
   if (!booking) {
     return { error: "BOOKING_NOT_FOUND" };
   }
 
+  // Buscar el servicio
   const service = await servicesRepository.getById(serviceId);
 
   if (!service) {
     return { error: "SERVICE_NOT_FOUND" };
   }
 
+  // Verificar si el servicio ya existe en la reserva
   const existingService = booking.services.find(
     (item) =>
       item.service._id.toString() === serviceId.toString()
   );
 
   if (existingService) {
-    existingService.quantity += 1;
+
+    // Incrementar la cantidad existente
+    existingService.quantity += quantity;
+
   } else {
+
+    // Agregar referencia al servicio
     booking.services.push({
       service: serviceId,
-      quantity: 1
+      quantity
     });
+
   }
 
+  // Guardar los cambios
   const updatedBooking = await bookingsRepository.update(
     bookingId,
     {
-      services: booking.services
+      services: booking.services.map((item) => ({
+        service: item.service._id ?? item.service,
+        quantity: item.quantity
+      }))
     }
   );
 

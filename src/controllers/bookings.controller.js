@@ -44,9 +44,10 @@ export const addServiceToBooking = async (req, res) => {
     const { bid, sid } = req.params;
 
     const result = await addServiceToBookingService(
-      bid,
-      sid
-    );
+  bid,
+  sid,
+  req.body.quantity
+);
 
     if (result.error === "BOOKING_NOT_FOUND") {
       return res.status(404).json({
