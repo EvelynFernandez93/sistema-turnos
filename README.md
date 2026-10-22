@@ -268,7 +268,7 @@ Ejemplo:
 ```env
 PORT=8080
 NODE_ENV=development
-MONGO_URI=mongodb+srv://USUARIO:CONTRASENA@CLUSTER.mongodb.net/sistema_turnos?retryWrites=true&w=majority
+MONGO_URI=mongodb+srv://<usuario>:<password>@<cluster>/<database>
 ```
 
 Reemplazar los valores de ejemplo por las credenciales correspondientes de MongoDB Atlas.
