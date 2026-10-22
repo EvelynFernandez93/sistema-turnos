@@ -4,7 +4,10 @@ import ServicesRepository from "../repositories/services.repository.js";
 const bookingsRepository = new BookingsRepository();
 const servicesRepository = new ServicesRepository();
 
-// Crear una nueva reserva
+// ========================================
+// CREAR UNA NUEVA RESERVA
+// ========================================
+
 export const createBooking = async (bookingData) => {
   const requiredFields = [
     "clientName",
@@ -14,6 +17,7 @@ export const createBooking = async (bookingData) => {
     "status"
   ];
 
+  // Verificar campos obligatorios
   const missingFields = requiredFields.filter(
     (field) =>
       !Object.prototype.hasOwnProperty.call(bookingData, field)
@@ -25,6 +29,7 @@ export const createBooking = async (bookingData) => {
     );
   }
 
+  // Crear la reserva sin servicios asociados
   const newBooking = {
     clientName: bookingData.clientName,
     clientEmail: bookingData.clientEmail,
@@ -37,63 +42,91 @@ export const createBooking = async (bookingData) => {
   return await bookingsRepository.create(newBooking);
 };
 
-// Obtener una reserva por ID
+// ========================================
+// OBTENER UNA RESERVA POR ID
+// ========================================
+
 export const getBookingById = async (id) => {
   return await bookingsRepository.getById(id);
 };
 
-// Agregar un servicio a una reserva
+// ========================================
+// AGREGAR UN SERVICIO A UNA RESERVA
+// ========================================
+
 export const addServiceToBooking = async (
   bookingId,
   serviceId,
   quantity = 1
 ) => {
 
-  // Buscar la reserva
+  // 1. Validar que la cantidad sea un entero positivo
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    return { error: "INVALID_QUANTITY" };
+  }
+
+  // 2. Buscar la reserva
   const booking = await bookingsRepository.getById(bookingId);
 
   if (!booking) {
     return { error: "BOOKING_NOT_FOUND" };
   }
 
-  // Buscar el servicio
+  // 3. Buscar el servicio
   const service = await servicesRepository.getById(serviceId);
 
   if (!service) {
     return { error: "SERVICE_NOT_FOUND" };
   }
 
-  // Verificar si el servicio ya existe en la reserva
-  const existingService = booking.services.find(
+  // 4. Preparar las referencias de servicios
+  // Conservamos los ObjectId y las cantidades,
+  // sin guardar los documentos completos.
+
+  const bookingServices = booking.services.map((item) => {
+
+    // Si populate no encontró el documento relacionado,
+    // no eliminamos silenciosamente la asociación.
+    if (item.service === null || item.service === undefined) {
+      throw new Error(
+        "La reserva contiene una referencia a un servicio inexistente"
+      );
+    }
+
+    return {
+      service: item.service._id ?? item.service,
+      quantity: item.quantity
+    };
+  });
+
+  // 5. Comprobar si el servicio ya existe en la reserva
+  const existingService = bookingServices.find(
     (item) =>
-      item.service._id.toString() === serviceId.toString()
+      item.service.toString() === serviceId.toString()
   );
 
+  // 6. Actualizar la cantidad o agregar el servicio
   if (existingService) {
 
-    // Incrementar la cantidad existente
     existingService.quantity += quantity;
 
   } else {
 
-    // Agregar referencia al servicio
-    booking.services.push({
-      service: serviceId,
+    bookingServices.push({
+      service: service._id,
       quantity
     });
 
   }
 
-  // Guardar los cambios
+  // 7. Guardar los cambios en MongoDB
   const updatedBooking = await bookingsRepository.update(
     bookingId,
     {
-      services: booking.services.map((item) => ({
-        service: item.service._id ?? item.service,
-        quantity: item.quantity
-      }))
+      services: bookingServices
     }
   );
 
+  // 8. Devolver la reserva actualizada
   return { booking: updatedBooking };
 };

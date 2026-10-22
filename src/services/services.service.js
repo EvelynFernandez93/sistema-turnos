@@ -3,9 +3,12 @@ import { ValidationError } from "../utils/ValidationError.js";
 
 const servicesRepository = new ServicesRepository();
 
-// Obtener servicios con filtros, paginación y ordenamiento
-export const getServices = async (query = {}) => {
+// ========================================
+// OBTENER SERVICIOS
+// Filtros, paginación y ordenamiento
+// ========================================
 
+export const getServices = async (query = {}) => {
   const {
     category,
     available,
@@ -18,27 +21,36 @@ export const getServices = async (query = {}) => {
   // 1. Construir filtros para MongoDB
   const filters = {};
 
+  // Filtrar por categoría
   if (category !== undefined) {
-    if (typeof category !== "string" || !category.trim()) {
-      throw new Error("La categoría debe ser un texto válido");
+    if (
+      typeof category !== "string" ||
+      !category.trim()
+    ) {
+      throw new ValidationError(
+        "La categoría debe ser un texto válido"
+      );
     }
 
-    // Comparación exacta, sin distinguir mayúsculas y minúsculas
-    const escapedCategory = category.trim().replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&"
-    );
+    // Escapar caracteres especiales de RegExp
+    const escapedCategory = category
+      .trim()
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+    // Comparación exacta sin distinguir mayúsculas
     filters.category = new RegExp(
       `^${escapedCategory}$`,
       "i"
     );
   }
 
+  // Filtrar por disponibilidad
   if (available !== undefined) {
-
-    if (available !== "true" && available !== "false") {
-      throw new Error(
+    if (
+      available !== "true" &&
+      available !== "false"
+    ) {
+      throw new ValidationError(
         "El parámetro available debe ser true o false"
       );
     }
@@ -51,20 +63,20 @@ export const getServices = async (query = {}) => {
   const limitNumber = Number(limit);
 
   if (
-  !Number.isSafeInteger(pageNumber) ||
-  pageNumber < 1
-) {
-  throw new ValidationError(
-    "El parámetro page debe ser un número entero mayor a 0"
-  );
-}
+    !Number.isSafeInteger(pageNumber) ||
+    pageNumber < 1
+  ) {
+    throw new ValidationError(
+      "El parámetro page debe ser un número entero mayor a 0"
+    );
+  }
 
   if (
     !Number.isSafeInteger(limitNumber) ||
     limitNumber < 1 ||
     limitNumber > 100
   ) {
-    throw new Error(
+    throw new ValidationError(
       "El parámetro limit debe ser un número entero entre 1 y 100"
     );
   }
@@ -79,18 +91,18 @@ export const getServices = async (query = {}) => {
   ];
 
   if (!allowedSortFields.includes(sortBy)) {
-    throw new Error(
+    throw new ValidationError(
       `sortBy debe ser uno de: ${allowedSortFields.join(", ")}`
     );
   }
 
   if (order !== "asc" && order !== "desc") {
-    throw new Error(
+    throw new ValidationError(
       "El parámetro order debe ser asc o desc"
     );
   }
 
-  // 4. Enviar filtros y opciones al Repository
+  // 4. Consultar al Repository
   const { services, total } =
     await servicesRepository.getAll(filters, {
       page: pageNumber,
@@ -99,7 +111,7 @@ export const getServices = async (query = {}) => {
       order
     });
 
-  // 5. Calcular metadatos de paginación
+  // 5. Calcular información de paginación
   const totalPages = Math.ceil(total / limitNumber);
 
   return {
@@ -109,22 +121,25 @@ export const getServices = async (query = {}) => {
       page: pageNumber,
       limit: limitNumber,
       totalPages,
-      hasPrevPage: pageNumber > 1,
+      hasPrevPage: pageNumber > 1 && totalPages > 0,
       hasNextPage: pageNumber < totalPages
     }
   };
 };
 
+// ========================================
+// OBTENER UN SERVICIO POR ID
+// ========================================
 
-// Obtener un servicio por ID
 export const getServiceById = async (id) => {
   return await servicesRepository.getById(id);
 };
 
+// ========================================
+// CREAR UN SERVICIO
+// ========================================
 
-// Crear un nuevo servicio
 export const createService = async (serviceData) => {
-
   const requiredFields = [
     "name",
     "description",
@@ -134,13 +149,17 @@ export const createService = async (serviceData) => {
     "available"
   ];
 
+  // Verificar campos obligatorios
   const missingFields = requiredFields.filter(
     (field) =>
-      !Object.prototype.hasOwnProperty.call(serviceData, field)
+      !Object.prototype.hasOwnProperty.call(
+        serviceData,
+        field
+      )
   );
 
   if (missingFields.length > 0) {
-    throw new Error(
+    throw new ValidationError(
       `Faltan campos obligatorios: ${missingFields.join(", ")}`
     );
   }
@@ -148,15 +167,23 @@ export const createService = async (serviceData) => {
   return await servicesRepository.create(serviceData);
 };
 
+// ========================================
+// ACTUALIZAR UN SERVICIO
+// ========================================
 
-// Actualizar un servicio
 export const updateService = async (id, updatedData) => {
-
+  // Impedir modificación de identificadores
   if (
-    Object.prototype.hasOwnProperty.call(updatedData, "id") ||
-    Object.prototype.hasOwnProperty.call(updatedData, "_id")
+    Object.prototype.hasOwnProperty.call(
+      updatedData,
+      "id"
+    ) ||
+    Object.prototype.hasOwnProperty.call(
+      updatedData,
+      "_id"
+    )
   ) {
-    throw new Error(
+    throw new ValidationError(
       "No se puede modificar el ID del servicio"
     );
   }
@@ -167,8 +194,10 @@ export const updateService = async (id, updatedData) => {
   );
 };
 
+// ========================================
+// ELIMINAR UN SERVICIO
+// ========================================
 
-// Eliminar un servicio
 export const deleteService = async (id) => {
   return await servicesRepository.delete(id);
 };

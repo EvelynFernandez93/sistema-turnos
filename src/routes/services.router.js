@@ -1,5 +1,6 @@
 import express from "express";
 
+// Controllers
 import {
   getServices,
   getServiceById,
@@ -14,32 +15,62 @@ import { validate } from "../middlewares/validate.middleware.js";
 // Esquemas de Zod
 import {
   createServiceSchema,
-  updateServiceSchema
+  updateServiceSchema,
+  serviceIdParamsSchema
 } from "../schemas/services.schema.js";
 
 const router = express.Router();
 
-// Obtener servicios
+// ========================================
+// OBTENER TODOS LOS SERVICIOS
+// GET /api/services
+// ========================================
+
 router.get("/", getServices);
 
-// Obtener servicio por ID
-router.get("/:sid", getServiceById);
+// ========================================
+// OBTENER SERVICIO POR ID
+// GET /api/services/:sid
+// ========================================
 
-// Crear servicio
+router.get(
+  "/:sid",
+  validate(serviceIdParamsSchema, "params"),
+  getServiceById
+);
+
+// ========================================
+// CREAR SERVICIO
+// POST /api/services
+// ========================================
+
 router.post(
   "/",
   validate(createServiceSchema),
   createService
 );
 
-// Actualizar servicio
+// ========================================
+// ACTUALIZAR SERVICIO
+// PUT /api/services/:sid
+// ========================================
+
 router.put(
   "/:sid",
+  validate(serviceIdParamsSchema, "params"),
   validate(updateServiceSchema),
   updateService
 );
 
-// Eliminar servicio
-router.delete("/:sid", deleteService);
+// ========================================
+// ELIMINAR SERVICIO
+// DELETE /api/services/:sid
+// ========================================
+
+router.delete(
+  "/:sid",
+  validate(serviceIdParamsSchema, "params"),
+  deleteService
+);
 
 export default router;

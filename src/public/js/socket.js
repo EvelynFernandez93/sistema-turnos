@@ -1,22 +1,67 @@
+// ========================================
+// CONEXIÓN CON SOCKET.IO
+// ========================================
+
 const socket = io();
 
 socket.on("connect", () => {
   console.log("Conectado al servidor mediante Socket.io");
 });
 
+socket.on("disconnect", () => {
+  console.log("Desconectado del servidor Socket.io");
+});
+
+// ========================================
+// EVENTO: SERVICIO CREADO
+// ========================================
+
 socket.on("serviceCreated", (data) => {
+
   console.log("Nuevo servicio recibido:", data);
 
+  // Obtener contenedor de servicios
   const servicesContainer =
     document.getElementById("services-container");
 
+  // Evitar errores si estamos en otra vista
   if (!servicesContainer) {
     return;
   }
 
-  const service = data.service;
+  // Obtener el servicio recibido
+  const service = data?.service;
 
-  // Eliminar mensaje de lista vacía
+  // Validar que el servicio exista y tenga un ID
+  if (!service || typeof service._id !== "string") {
+    console.error(
+      "El servicio recibido no tiene un ID válido"
+    );
+
+    return;
+  }
+
+  // ========================================
+  // EVITAR TARJETAS DUPLICADAS
+  // ========================================
+
+  const existingCard = document.getElementById(
+    `service-${service._id}`
+  );
+
+  if (existingCard) {
+    console.log(
+      "El servicio ya existe en la vista:",
+      service.name
+    );
+
+    return;
+  }
+
+  // ========================================
+  // ELIMINAR MENSAJE DE LISTA VACÍA
+  // ========================================
+
   const emptyMessage =
     document.getElementById("empty-services-message");
 
@@ -24,19 +69,31 @@ socket.on("serviceCreated", (data) => {
     emptyMessage.remove();
   }
 
-  // Crear card
-  const serviceCard =
-    document.createElement("article");
+  // ========================================
+  // CREAR TARJETA DEL SERVICIO
+  // ========================================
+
+  const serviceCard = document.createElement("article");
 
   serviceCard.classList.add("service-card");
 
-  // Nombre
+  // Asignar ID único de MongoDB
+  serviceCard.id = `service-${service._id}`;
+
+  // ========================================
+  // NOMBRE
+  // ========================================
+
   const name = document.createElement("h3");
+
   name.textContent = service.name;
 
   serviceCard.appendChild(name);
 
-  // Descripción
+  // ========================================
+  // DESCRIPCIÓN
+  // ========================================
+
   serviceCard.appendChild(
     createOption(
       "Descripción:",
@@ -44,7 +101,10 @@ socket.on("serviceCreated", (data) => {
     )
   );
 
-  // Duración
+  // ========================================
+  // DURACIÓN
+  // ========================================
+
   serviceCard.appendChild(
     createOption(
       "Duración:",
@@ -52,7 +112,10 @@ socket.on("serviceCreated", (data) => {
     )
   );
 
-  // Precio
+  // ========================================
+  // PRECIO
+  // ========================================
+
   serviceCard.appendChild(
     createOption(
       "Precio:",
@@ -60,7 +123,10 @@ socket.on("serviceCreated", (data) => {
     )
   );
 
-  // Categoría
+  // ========================================
+  // CATEGORÍA
+  // ========================================
+
   serviceCard.appendChild(
     createOption(
       "Categoría:",
@@ -68,67 +134,63 @@ socket.on("serviceCreated", (data) => {
     )
   );
 
-  // Disponibilidad
-  const availability =
-    document.createElement("p");
+  // ========================================
+  // DISPONIBILIDAD
+  // ========================================
 
-  availability.classList.add(
-    "service-card-options"
-  );
+  const availability = document.createElement("p");
 
-  const availabilityTitle =
-    document.createElement("strong");
+  availability.classList.add("service-card-options");
+
+  const availabilityTitle = document.createElement("strong");
 
   availabilityTitle.classList.add(
     "service-card-options-title"
   );
 
-  availabilityTitle.textContent =
-    "Disponibilidad:";
+  availabilityTitle.textContent = "Disponibilidad:";
 
-  const status =
-    document.createElement("span");
+  const status = document.createElement("span");
 
   status.classList.add(
     "availability-status",
-    service.available
-      ? "available"
-      : "unavailable"
+    service.available ? "available" : "unavailable"
   );
 
-  status.textContent =
-    service.available
-      ? "Disponible"
-      : "No disponible";
+  status.textContent = service.available
+    ? "Disponible"
+    : "No disponible";
 
-  availability.appendChild(
-    availabilityTitle
-  );
+  availability.appendChild(availabilityTitle);
 
   availability.appendChild(status);
 
-  serviceCard.appendChild(
-    availability
+  serviceCard.appendChild(availability);
+
+  // ========================================
+  // AGREGAR TARJETA AL HTML
+  // ========================================
+
+  servicesContainer.appendChild(serviceCard);
+
+  console.log(
+    "Servicio agregado correctamente:",
+    service.name
   );
 
-  // Agregar nueva card
-  servicesContainer.appendChild(
-    serviceCard
-  );
 });
 
+// ========================================
+// FUNCIÓN AUXILIAR
+// ========================================
 
 function createOption(title, value) {
 
-  const option =
-    document.createElement("p");
+  const option = document.createElement("p");
 
-  option.classList.add(
-    "service-card-options"
-  );
+  option.classList.add("service-card-options");
 
-  const optionTitle =
-    document.createElement("strong");
+  const optionTitle = document.createElement("strong");
 
   optionTitle.classList.add(
     "service-card-options-title"
@@ -136,8 +198,7 @@ function createOption(title, value) {
 
   optionTitle.textContent = title;
 
-  const optionValue =
-    document.createElement("span");
+  const optionValue = document.createElement("span");
 
   optionValue.classList.add(
     "service-card-options-value"
@@ -146,6 +207,7 @@ function createOption(title, value) {
   optionValue.textContent = value;
 
   option.appendChild(optionTitle);
+
   option.appendChild(optionValue);
 
   return option;
